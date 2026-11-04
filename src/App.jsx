@@ -3,7 +3,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import { jsPDF } from "jspdf";
+import EditarSalida from "./components/EditarSalida";
 import autoTable from "jspdf-autotable";
+import DetalleSalida from "./components/DetalleSalida";
+import { sincronizar } from "./db/sync";
 import DateSelector from "./components/DateSelector";
 import ItemForm from "./components/ItemForm";
 import {
@@ -12,8 +15,7 @@ import {
   obtenerSalidasPorFecha,
   obtenerTodasLasSalidas,
   eliminarSalida,
-  obtenerSalidasParaSync,
-  sincronizarSalida,
+  guardarSalida,
 } from "./db/database";
 
 export default function App() {
@@ -27,6 +29,9 @@ export default function App() {
   const [operador] = useState(localStorage.getItem("operador_default") || "Juan Perez");
   const [salidas, setSalidas] = useState([]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [salidaVistaId, setSalidaVistaId] = useState(null);
+  const [salidaEditando, setSalidaEditando] = useState(null);
+  const salidaVista = salidas.find((s) => s.id === salidaVistaId) || null;
 
   // Para que los listeners de conexión siempre vean la fecha actual
   const fechaRef = useRef("");
@@ -47,17 +52,7 @@ export default function App() {
   // Sincronizar salidas pendientes (por ahora simulado)
   const syncSalidas = async () => {
     if (!navigator.onLine) return;
-
-    const pendientes = await obtenerSalidasParaSync();
-    if (pendientes.length === 0) return;
-
-    // TODO: aquí va el envío real al servidor
-    console.log("Sincronizando salidas:", pendientes);
-
-    for (const s of pendientes) {
-      await sincronizarSalida(s.id);
-    }
-
+    await sincronizar();
     if (fechaRef.current) {
       await cargarSalidasPorFecha(fechaRef.current);
     }
@@ -83,7 +78,8 @@ export default function App() {
   useEffect(() => {
     getDB()
       .then(() => cargarSalidasPorFecha(fecha))
-      .catch((err) => console.error("Error abriendo la base de datos:", err));
+      .then(() => syncSalidas())
+      .catch((err) => console.error("Error al iniciar:", err));
   }, []);
 
   const handleChangeFecha = async (fechaSeleccionada) => {
@@ -100,6 +96,7 @@ export default function App() {
     try {
       await crearSalida({ ...salidaData, fecha });
       await cargarSalidasPorFecha(fecha);
+      syncSalidas().catch((err) => console.error("Error al sincronizar:", err));
       return true;
     } catch (err) {
       console.error(err);
@@ -113,9 +110,22 @@ export default function App() {
     try {
       await eliminarSalida(salidaId);
       await cargarSalidasPorFecha(fecha);
+      syncSalidas().catch((err) => console.error("Error al sincronizar:", err));
     } catch (err) {
       console.error(err);
       alert("No se pudo eliminar: " + err.message);
+    }
+  };
+
+  const handleGuardarEdicion = async (salidaEditada) => {
+    try {
+      await guardarSalida(salidaEditada);
+      setSalidaEditando(null);
+      await cargarSalidasPorFecha(fecha);
+      syncSalidas().catch((err) => console.error("Error al sincronizar:", err));
+    } catch (err) {
+      console.error(err);
+      alert("No se pudo guardar los cambios: " + err.message);
     }
   };
 
@@ -252,19 +262,34 @@ export default function App() {
                     {s.estado_sync === "synced" ? "☁️ Enviada" : "📱 Local"}
                   </td>
                   <td style={{ ...celda, textAlign: "center" }}>
-                    <button
-                      onClick={() => handleEliminarSalida(s.id)}
-                      style={{
-                        padding: "4px 8px",
-                        backgroundColor: "#dc3545",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: "4px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      🗑️
-                    </button>
+                    <div style={{ display: "flex", gap: "6px", justifyContent: "center" }}>
+                      <button
+                        onClick={() => setSalidaVistaId(s.id)}
+                        style={{
+                          padding: "4px 8px",
+                          backgroundColor: "#007bff",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: "4px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        👁️
+                      </button>
+                      <button
+                        onClick={() => handleEliminarSalida(s.id)}
+                        style={{
+                          padding: "4px 8px",
+                          backgroundColor: "#dc3545",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: "4px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -275,6 +300,23 @@ export default function App() {
 
       {/* Formulario para agregar items */}
       <ItemForm fecha={fecha} operador={operador} onActualizar={handleActualizar} />
+      <DetalleSalida
+        salida={salidaVista}
+        onCerrar={() => setSalidaVistaId(null)}
+        onEditar={() => {
+          setSalidaEditando(salidaVista);
+          setSalidaVistaId(null);
+        }}
+      />
+
+      {salidaEditando && (
+        <EditarSalida
+          key={salidaEditando.id}
+          salida={salidaEditando}
+          onGuardar={handleGuardarEdicion}
+          onCancelar={() => setSalidaEditando(null)}
+        />
+      )}
     </div>
   );
 }

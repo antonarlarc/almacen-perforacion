@@ -95,6 +95,15 @@ export default function ItemForm({
     if (onEliminarItem) onEliminarItem(index);
   };
 
+  // Regresa el item al formulario para corregirlo
+  const handleEditarItem = (index) => {
+    const it = items[index];
+    setSelectedItem(inventario.find((x) => x.sku === it.sku) || null);
+    setSearchTerm(it.nombre);
+    setFormData({ cantidad: it.cantidad, id_maquina: it.id_maquina, notas: it.notas });
+    setItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async () => {
     if (items.length === 0) {
       alert("Debes agregar al menos un item");
@@ -242,6 +251,9 @@ export default function ItemForm({
             {items.map((it, i) => (
               <li key={i} style={{ marginBottom: "6px" }}>
                 {it.cantidad} × {it.nombre} — máquina {it.id_maquina}{" "}
+                <button type="button" onClick={() => handleEditarItem(i)}>
+                  ✏️
+                </button>{" "}
                 <button type="button" onClick={() => handleEliminar(i)}>
                   ✖
                 </button>

@@ -1,52 +1,28 @@
-// src/db/database.js
-// Funciones para interactuar con IndexedDB
-
 import { openDB } from "idb";
-import {
-  DB_NAME,
-  DB_VERSION,
-  STORE_INVENTARIO,
-  STORE_SALIDAS,
-  STORE_ITEMS_SALIDA,
-  initDB,
-} from "./schema.js";
+import { DB_NAME, DB_VERSION, STORE_INVENTARIO, STORE_SALIDAS, initDB} from "./schema.js";
 
-export const initDatabase = async () => {
-  return openDB(DB_NAME, DB_VERSION, {
-    upgrade(db) {
-      initDB(db);
+export const initDatabase = async () =>
+  openDB(DB_NAME, DB_VERSION, {
+    upgrade(db, oldVersion) {
+      initDB(db, oldVersion);
     },
   });
-};
 
-// Singleton
 let dbInstance = null;
-
 export const getDB = async () => {
-  if (!dbInstance) {
-    dbInstance = await initDatabase();
-  }
+  if (!dbInstance) dbInstance = await initDatabase();
   return dbInstance;
 };
 
-// ============================================
-// INVENTARIO
-// ============================================
+// ============ INVENTARIO ============
 
-export const buscarItemPorSKU = async (sku) => {
-  const db = await getDB();
-  return db.get(STORE_INVENTARIO, sku);
-};
+export const buscarItemPorSKU = async (sku) => (await getDB()).get(STORE_INVENTARIO, sku);
 
-export const obtenerTodosLosItems = async () => {
-  const db = await getDB();
-  return db.getAll(STORE_INVENTARIO);
-};
+export const obtenerTodosLosItems = async () => (await getDB()).getAll(STORE_INVENTARIO);
 
 export const agregarItem = async (itemData) => {
   const db = await getDB();
   const stock = Number(itemData.stock ?? itemData.stock_total ?? 0);
-
   const item = {
     ...itemData,
     categoria: itemData.categoria || "General",
@@ -54,7 +30,6 @@ export const agregarItem = async (itemData) => {
     stock_disponible: stock,
     estado: itemData.estado || "bueno",
   };
-
   await db.add(STORE_INVENTARIO, item);
   return item;
 };
@@ -62,133 +37,103 @@ export const agregarItem = async (itemData) => {
 export const actualizarStock = async (sku, cantidadEntrante = 0, cantidadSaliente = 0) => {
   const db = await getDB();
   const tx = db.transaction(STORE_INVENTARIO, "readwrite");
-  const store = tx.objectStore(STORE_INVENTARIO);
-
-  const item = await store.get(sku);
-  if (!item) {
-    throw new Error("Item no encontrado en el inventario");
-  }
+  const item = await tx.store.get(sku);
+  if (!item) throw new Error("Item no encontrado en el inventario");
 
   const nuevoStock = item.stock_disponible + cantidadEntrante - cantidadSaliente;
-  if (nuevoStock < 0) {
-    throw new Error("No hay suficiente stock");
-  }
-  if (nuevoStock > item.stock_total) {
-    throw new Error("Excede el stock total disponible");
-  }
+  if (nuevoStock < 0) throw new Error("No hay suficiente stock");
+  if (nuevoStock > item.stock_total) throw new Error("Excede el stock total disponible");
 
-  const updatedItem = { ...item, stock_disponible: nuevoStock };
-  await store.put(updatedItem);
+  const actualizado = { ...item, stock_disponible: nuevoStock };
+  await tx.store.put(actualizado);
   await tx.done;
-
-  return updatedItem;
+  return actualizado;
 };
 
-// ============================================
-// SALIDAS
-// ============================================
+// ============ SALIDAS ============
 
 export const crearSalida = async (salidaData) => {
   const db = await getDB();
-  const tx = db.transaction([STORE_SALIDAS, STORE_ITEMS_SALIDA], "readwrite");
-
   const salida = {
     turno: "1",
     ...salidaData,
+    id: crypto.randomUUID(),
     items: salidaData.items || [],
+    eliminada: false,
     estado_sync: "local",
     ultima_modificacion: Date.now(),
   };
-
-  const id = await tx.objectStore(STORE_SALIDAS).add(salida);
-  salida.id = id;
-
-  for (const item of salida.items) {
-    await tx.objectStore(STORE_ITEMS_SALIDA).add({
-      ...item,
-      notas: item.notas || "",
-      idSalida: id,
-      fecha: salida.fecha,
-    });
-  }
-
-  await tx.done;
+  await db.put(STORE_SALIDAS, salida);
   return salida;
 };
 
+// Guardar cambios de una salida existente (edición)
+export const guardarSalida = async (salida) => {
+  const db = await getDB();
+  const actualizada = { ...salida, estado_sync: "local", ultima_modificacion: Date.now() };
+  await db.put(STORE_SALIDAS, actualizada);
+  return actualizada;
+};
+
+export const obtenerSalidaPorId = async (id) => (await getDB()).get(STORE_SALIDAS, id);
+
 export const obtenerSalidasPorFecha = async (fecha) => {
   const db = await getDB();
-  return db.getAllFromIndex(STORE_SALIDAS, "fecha", fecha);
-};
-
-export const obtenerSalidasOperador = async (operador, desdeFecha = null) => {
-  const db = await getDB();
-  const salidas = await db.getAllFromIndex(STORE_SALIDAS, "operador", operador);
-
-  return salidas
-    .filter((s) => !desdeFecha || s.fecha >= desdeFecha)
-    .sort((a, b) => (a.fecha < b.fecha ? 1 : -1)); // más recientes primero
-};
-
-// ============================================
-// SINCRONIZACIÓN
-// ============================================
-
-export const obtenerSalidasParaSync = async () => {
-  const db = await getDB();
-  return db.getAllFromIndex(STORE_SALIDAS, "estado_sync", "local");
-};
-
-export const sincronizarSalida = async (salidaId) => {
-  const db = await getDB();
-  const tx = db.transaction(STORE_SALIDAS, "readwrite");
-  const salida = await tx.store.get(salidaId);
-
-  if (!salida) {
-    throw new Error("Salida no encontrada");
-  }
-
-  salida.estado_sync = "synced";
-  salida.backup_timestamp = Date.now();
-  await tx.store.put(salida);
-  await tx.done;
-
-  return { exito: true, salida };
-};
-
-export const revertirSincronizacion = async (salidaId) => {
-  const db = await getDB();
-  const tx = db.transaction(STORE_SALIDAS, "readwrite");
-  const salida = await tx.store.get(salidaId);
-
-  if (salida) {
-    salida.estado_sync = "local";
-    await tx.store.put(salida);
-  }
-
-  await tx.done;
-  return true;
+  const lista = await db.getAllFromIndex(STORE_SALIDAS, "fecha", fecha);
+  return lista.filter((s) => !s.eliminada);
 };
 
 export const obtenerTodasLasSalidas = async () => {
   const db = await getDB();
-  return db.getAll(STORE_SALIDAS);
+  return (await db.getAll(STORE_SALIDAS)).filter((s) => !s.eliminada);
 };
 
-export const eliminarSalida = async (salidaId) => {
+// "Eliminar" = marcar como eliminada, para que el cambio también llegue a los demás celulares
+export const eliminarSalida = async (id) => {
   const db = await getDB();
-  const tx = db.transaction([STORE_SALIDAS, STORE_ITEMS_SALIDA], "readwrite");
+  const salida = await db.get(STORE_SALIDAS, id);
+  if (!salida) return;
+  await db.put(STORE_SALIDAS, {
+    ...salida,
+    eliminada: true,
+    estado_sync: "local",
+    ultima_modificacion: Date.now(),
+  });
+};
 
-  // Borrar los items de esta salida
-  let cursor = await tx
-    .objectStore(STORE_ITEMS_SALIDA)
-    .index("idSalida")
-    .openCursor(salidaId);
-  while (cursor) {
-    await cursor.delete();
-    cursor = await cursor.continue();
+// ============ SINCRONIZACIÓN ============
+
+export const obtenerSalidasParaSync = async () =>
+  (await getDB()).getAllFromIndex(STORE_SALIDAS, "estado_sync", "local");
+
+// Solo marca como enviada si no la editaron mientras se subía
+export const marcarSincronizada = async (id, ultimaModificacion) => {
+  const db = await getDB();
+  const tx = db.transaction(STORE_SALIDAS, "readwrite");
+  const s = await tx.store.get(id);
+  if (s && s.ultima_modificacion === ultimaModificacion) {
+    await tx.store.put({ ...s, estado_sync: "synced" });
   }
+  await tx.done;
+};
 
-  await tx.objectStore(STORE_SALIDAS).delete(salidaId);
+// Guarda lo que llegó del servidor, sin pisar cambios locales pendientes
+export const guardarDesdeServidor = async (filas) => {
+  const db = await getDB();
+  const tx = db.transaction(STORE_SALIDAS, "readwrite");
+  for (const f of filas) {
+    const local = await tx.store.get(f.id);
+    if (local && local.estado_sync === "local") continue;
+    await tx.store.put({
+      id: f.id,
+      fecha: f.fecha,
+      operador: f.operador,
+      turno: f.turno,
+      items: f.items || [],
+      eliminada: f.eliminada,
+      ultima_modificacion: f.ultima_modificacion,
+      estado_sync: "synced",
+    });
+  }
   await tx.done;
 };
