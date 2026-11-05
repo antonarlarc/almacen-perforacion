@@ -1,0 +1,65 @@
+/* src/estilos.css */
+/* Estilos para usar la app cómodamente en celular */
+
+#root {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+header {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Botones más fáciles de tocar */
+button {
+  min-height: 44px;
+  min-width: 44px;
+  font-size: 16px;
+}
+
+/* Campos del formulario */
+.form-group {
+  margin-bottom: 18px;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px;
+  font-size: 18px;
+  background: #fff;
+  color: #222;
+  border: 2px solid #8a8fa3;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #28a745;
+  box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.3);
+}
+
+textarea.form-control {
+  min-height: 90px;
+  resize: vertical;
+}
+
+/* Sugerencias al escribir el nombre del item */
+.form-group ul li {
+  padding: 14px 12px !important;
+  font-size: 16px;
+}
+
+.stock-status {
+  font-size: 16px;
+}

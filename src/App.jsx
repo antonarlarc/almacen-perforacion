@@ -7,6 +7,7 @@ import EditarSalida from "./components/EditarSalida";
 import autoTable from "jspdf-autotable";
 import DetalleSalida from "./components/DetalleSalida";
 import { sincronizar } from "./db/sync";
+import NombreOperador from "./components/NombreOperador";
 import DateSelector from "./components/DateSelector";
 import ItemForm from "./components/ItemForm";
 import {
@@ -26,7 +27,14 @@ export default function App() {
     return `${d.getFullYear()}-${mes}-${dia}`;
   };
   const [fecha, setFecha] = useState(hoy());
-  const [operador] = useState(localStorage.getItem("operador_default") || "Juan Perez");
+  const [operador, setOperador] = useState(localStorage.getItem("operador_default") || "");
+  const [editandoNombre, setEditandoNombre] = useState(!localStorage.getItem("operador_default"));
+
+  const guardarNombre = (nombre) => {
+    localStorage.setItem("operador_default", nombre);
+    setOperador(nombre);
+    setEditandoNombre(false);
+  };
   const [salidas, setSalidas] = useState([]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [salidaVistaId, setSalidaVistaId] = useState(null);
@@ -204,6 +212,21 @@ export default function App() {
           <p style={{ margin: 0, fontSize: "12px", color: isOnline ? "#28a745" : "#b8860b" }}>
             {isOnline ? "✅ Conexión activa" : "⚠️ Modo Offline - Los datos se guardarán localmente"}
           </p>
+          <button
+            type="button"
+            onClick={() => setEditandoNombre(true)}
+            style={{
+              marginTop: "6px",
+              padding: "4px 10px",
+              background: "transparent",
+              color: "#222",
+              border: "1px solid #aaa",
+              borderRadius: "6px",
+              cursor: "pointer",
+            }}
+          >
+            👤 {operador || "Sin nombre"} ✏️
+          </button>
         </div>
 
         <div style={{ display: "flex", gap: "10px" }}>
@@ -315,6 +338,14 @@ export default function App() {
           salida={salidaEditando}
           onGuardar={handleGuardarEdicion}
           onCancelar={() => setSalidaEditando(null)}
+        />
+      )}
+
+      {editandoNombre && (
+        <NombreOperador
+          valorInicial={operador}
+          onGuardar={guardarNombre}
+          onCancelar={operador ? () => setEditandoNombre(false) : null}
         />
       )}
     </div>
