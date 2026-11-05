@@ -63,3 +63,46 @@ textarea.form-control {
 .stock-status {
   font-size: 16px;
 }
+/* Refuerzo: aplica a todos los formularios de la app */
+form .form-group {
+  margin-bottom: 22px !important;
+}
+
+form label {
+  display: block !important;
+  margin-bottom: 6px !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+}
+
+form input:not([type="checkbox"]):not([type="radio"]),
+form textarea {
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  min-height: 52px !important;
+  margin: 0 !important;
+  padding: 12px !important;
+  font-size: 18px !important;
+  font-family: inherit !important;
+  background: #fff !important;
+  color: #222 !important;
+  border: 2px solid #8a8fa3 !important;
+  border-radius: 8px !important;
+}
+
+form textarea {
+  min-height: 100px !important;
+}
+
+form input:disabled {
+  background: #e9ecef !important;
+  color: #555 !important;
+}
+
+form input:focus,
+form textarea:focus {
+  outline: none;
+  border-color: #28a745 !important;
+  box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.3);
+}

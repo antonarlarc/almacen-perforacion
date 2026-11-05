@@ -1,10 +1,10 @@
-// src/index.js - Entry point para la app
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App.jsx';
+// src/main.jsx - Entry point para la app
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App.jsx";
+import "./estilos.css";
 
-// Montar la app
-const container = document.getElementById('root');
+const container = document.getElementById("root");
 
 ReactDOM.createRoot(container).render(
   <React.StrictMode>
