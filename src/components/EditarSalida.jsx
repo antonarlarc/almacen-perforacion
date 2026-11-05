@@ -2,6 +2,7 @@
 // Ventana para editar los items de una salida ya guardada
 
 import { useState } from "react";
+import MaquinaSelector, { textoAMaquinas, maquinasATexto } from "./MaquinaSelector";
 
 const NUEVO_VACIO = { nombre: "", sku: "", cantidad: 1, id_maquina: "", notas: "" };
 
@@ -123,12 +124,12 @@ export default function EditarSalida({ salida, onGuardar, onCancelar }) {
             />
 
             <label style={{ fontSize: "13px" }}>Máquina</label>
-            <input
-              type="text"
-              value={it.id_maquina || ""}
-              onChange={(e) => cambiarItem(i, "id_maquina", e.target.value)}
-              style={{ ...campo, marginBottom: "6px" }}
-            />
+            <div style={{ marginBottom: "6px" }}>
+              <MaquinaSelector
+                value={textoAMaquinas(it.id_maquina)}
+                onChange={(lista) => cambiarItem(i, "id_maquina", maquinasATexto(lista))}
+              />
+            </div>
 
             <label style={{ fontSize: "13px" }}>Notas</label>
             <textarea
@@ -188,13 +189,14 @@ export default function EditarSalida({ salida, onGuardar, onCancelar }) {
             onChange={(e) => setNuevo({ ...nuevo, cantidad: e.target.value })}
             style={{ ...campo, marginBottom: "6px" }}
           />
-          <input
-            type="text"
-            placeholder="Máquina (Ej: M-01)"
-            value={nuevo.id_maquina}
-            onChange={(e) => setNuevo({ ...nuevo, id_maquina: e.target.value })}
-            style={{ ...campo, marginBottom: "6px" }}
-          />
+          
+          <div style={{ marginBottom: "6px" }}>
+            <MaquinaSelector
+              value={textoAMaquinas(nuevo.id_maquina)}
+              onChange={(lista) => setNuevo({ ...nuevo, id_maquina: maquinasATexto(lista) })}
+            />
+          </div>
+            
           <textarea
             rows="2"
             placeholder="Notas"

@@ -2,9 +2,10 @@
 // Formulario para agregar items a una salida
 
 import { useState, useEffect } from "react";
+import MaquinaSelector, { textoAMaquinas, maquinasATexto } from "./MaquinaSelector";
 import { obtenerTodosLosItems } from "../db/database.js";
 
-const FORM_INICIAL = { cantidad: 1, id_maquina: "", notas: "" };
+const FORM_INICIAL = { cantidad: 1, maquinas: [], notas: "" };
 
 export default function ItemForm({
   fecha,
@@ -53,6 +54,11 @@ export default function ItemForm({
 
     const cantidad = parseInt(formData.cantidad) || 1;
 
+    if (formData.maquinas.length === 0) {
+      alert("Elige al menos una máquina");
+      return;
+    }
+
     // Validar stock (considerando lo que ya se agregó de ese mismo SKU)
     if (selectedItem) {
       const yaAgregado = items
@@ -75,7 +81,7 @@ export default function ItemForm({
       sku: selectedItem ? selectedItem.sku : "",
       nombre,
       cantidad,
-      id_maquina: formData.id_maquina || "",
+      id_maquina: maquinasATexto(formData.maquinas),
       nombre_maquina: "",
       notas: formData.notas || "",
       idSalida: null,
@@ -100,7 +106,11 @@ export default function ItemForm({
     const it = items[index];
     setSelectedItem(inventario.find((x) => x.sku === it.sku) || null);
     setSearchTerm(it.nombre);
-    setFormData({ cantidad: it.cantidad, id_maquina: it.id_maquina, notas: it.notas });
+    setFormData({
+      cantidad: it.cantidad,
+      maquinas: textoAMaquinas(it.id_maquina),
+      notas: it.notas,
+    });
     setItems((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -205,15 +215,10 @@ export default function ItemForm({
       )}
 
       <div className="form-group">
-        <label htmlFor="id_maquina" className="form-label">Máquina:</label>
-        <input
-          type="text"
-          id="id_maquina"
-          value={formData.id_maquina}
-          onChange={(e) => handleChange("id_maquina", e.target.value)}
-          placeholder="Ej: M-01, M-02, etc."
-          className="form-control"
-          required
+        <div className="form-label">Máquina (puedes elegir varias):</div>
+        <MaquinaSelector
+          value={formData.maquinas}
+          onChange={(lista) => handleChange("maquinas", lista)}
         />
       </div>
 
