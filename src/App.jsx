@@ -136,6 +136,28 @@ export default function App() {
       alert("No se pudo guardar los cambios: " + err.message);
     }
   };
+// Resumen de cuántos items de una salida ya se capturaron en CONTPAQi
+  const resumenCapturados = (s) => {
+    const lista = s.items || [];
+    const cap = lista.filter((it) => it.capturado).length;
+    return { cap, total: lista.length, completa: lista.length > 0 && cap === lista.length };
+  };
+
+  // Guardar las marcas de "capturado" de una salida
+  const handleActualizarItems = async (salida, nuevosItems) => {
+    // Se actualiza la pantalla de inmediato y luego se guarda
+    setSalidas((prev) =>
+      prev.map((s) => (s.id === salida.id ? { ...s, items: nuevosItems } : s))
+    );
+    try {
+      await guardarSalida({ ...salida, items: nuevosItems });
+      syncSalidas().catch((err) => console.error("Error al sincronizar:", err));
+    } catch (err) {
+      console.error(err);
+      alert("No se pudo guardar la marca: " + err.message);
+      await cargarSalidasPorFecha(fecha);
+    }
+  };
 
   const handleSyncClick = async () => {
     if (!isOnline) {
@@ -278,9 +300,21 @@ export default function App() {
             </thead>
             <tbody>
               {salidas.map((s) => (
-                <tr key={s.id}>
+                <tr
+                  key={s.id}
+                  style={{
+                    backgroundColor: resumenCapturados(s).completa ? "#d4edda" : "transparent",
+                    color: resumenCapturados(s).completa ? "#222" : "inherit",
+                  }}
+                >
                   <td style={celda}>{s.operador}</td>
-                  <td style={{ ...celda, textAlign: "center" }}>{(s.items || []).length}</td>
+                  <td style={{ ...celda, textAlign: "center" }}>
+                    {(s.items || []).length}
+                    <div style={{ fontSize: "12px" }}>
+                      {resumenCapturados(s).completa ? "✅" : "⏳"} {resumenCapturados(s).cap}{" "}
+                      capturados
+                    </div>
+                  </td>
                   <td style={{ ...celda, textAlign: "center" }}>
                     {s.estado_sync === "synced" ? "☁️ Enviada" : "📱 Local"}
                   </td>
@@ -330,6 +364,7 @@ export default function App() {
           setSalidaEditando(salidaVista);
           setSalidaVistaId(null);
         }}
+        onActualizarItems={(nuevos) => handleActualizarItems(salidaVista, nuevos)}
       />
 
       {salidaEditando && (
